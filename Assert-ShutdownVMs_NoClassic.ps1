@@ -36,6 +36,8 @@
         Human-readable informational and error messages produced during the job. Not intended to be consumed by another runbook.
 #>
 
+# Worked on by Austin and James
+
 param
 (
     [parameter(Mandatory = $True)]
