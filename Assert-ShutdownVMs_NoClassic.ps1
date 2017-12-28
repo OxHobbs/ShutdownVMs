@@ -47,7 +47,7 @@ param
     [bool]$Simulate = $false
 )
 
-$conn = Get-AutomationConnection -Name AzureRunAsConnection
+#$conn = Get-AutomationConnection -Name AzureRunAsConnection
 Add-AzureRMAccount -EnvironmentName 'AzureUSGovernment' -ServicePrincipal -Tenant $conn.TenantID -ApplicationID $conn.ApplicationID -CertificateThumbprint $conn.CertificateThumbprint
 
 $subscriptionObj = Get-AzureRmSubscription -SubscriptionName $SubscriptionName
@@ -151,7 +151,7 @@ function AssertVirtualMachinePowerState
     )
 
     # Get VM depending on type
-    if ($VirtualMachine.ResourceType -eq "Microsoft.Compute/virtualMachines")
+    if ($VirtualMachine.Type -eq "Microsoft.Compute/virtualMachines")
     {
         $resourceManagerVM = $ResourceManagerVMList | where Name -eq $VirtualMachine.Name
         AssertResourceManagerVirtualMachinePowerState -VirtualMachine $resourceManagerVM -DesiredState $DesiredState -Simulate $Simulate
@@ -242,10 +242,10 @@ try
 
 
     # Get a list of all virtual machines in subscription
-    $resourceManagerVMList = @(Get-AzureRmResource | where {$_.ResourceType -like "Microsoft.*/virtualMachines"} | sort Name)
+    $resourceManagerVMList = @(Get-AzureRmVM | sort Name)
 
     # Get resource groups that are tagged for automatic shutdown of resources
-    $taggedResourceGroups = @(Get-AzureRmResourceGroup | where {$_.Tags.Count -gt 0 -and $_.Tags.Name -contains "AutoShutdownSchedule"})
+    $taggedResourceGroups = @(Get-AzureRmResourceGroup | where {$_.Tags.Count -gt 0 -and $_.Tags.Keys -contains "AutoShutdownSchedule"})
     $taggedResourceGroupNames = @($taggedResourceGroups | select -ExpandProperty ResourceGroupName)
     Write-Output "Found [$($taggedResourceGroups.Count)] schedule-tagged resource groups in subscription"	
 
@@ -259,17 +259,17 @@ try
         $schedule = $null
 
         # Check for direct tag or group-inherited tag
-        if ($vm.ResourceType -eq "Microsoft.Compute/virtualMachines" -and $vm.Tags -and $vm.Tags.Name -contains "AutoShutdownSchedule")
+        if ($vm.Tags.Keys -contains "AutoShutdownSchedule")
         {
             # VM has direct tag (possible for resource manager deployment model VMs). Prefer this tag schedule.
-            $schedule = ($vm.Tags | where Name -eq "AutoShutdownSchedule")["Value"]
+            $schedule = ($vm.Tags.Values)
             Write-Output "[$($vm.Name)]: Found direct VM schedule tag with value: $schedule"
         }
         elseif ($taggedResourceGroupNames -contains $vm.ResourceGroupName)
         {
             # VM belongs to a tagged resource group. Use the group tag
             $parentGroup = $taggedResourceGroups | where ResourceGroupName -eq $vm.ResourceGroupName
-            $schedule = ($parentGroup.Tags | where Name -eq "AutoShutdownSchedule")["Value"]
+            $schedule = ($parentGroup.Tags.Values)
             Write-Output "[$($vm.Name)]: Found parent resource group schedule tag with value: $schedule"
         }
         else
@@ -301,7 +301,7 @@ try
                 break
             }
         }
-
+        
         # Enforce desired state for group resources based on result. 
         if ($scheduleMatched)
         {
