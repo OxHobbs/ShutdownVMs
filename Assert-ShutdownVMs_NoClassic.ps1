@@ -47,7 +47,7 @@ param
     [bool]$Simulate = $false
 )
 
-#$conn = Get-AutomationConnection -Name AzureRunAsConnection
+$conn = Get-AutomationConnection -Name AzureRunAsConnection
 Add-AzureRMAccount -EnvironmentName 'AzureUSGovernment' -ServicePrincipal -Tenant $conn.TenantID -ApplicationID $conn.ApplicationID -CertificateThumbprint $conn.CertificateThumbprint
 
 $subscriptionObj = Get-AzureRmSubscription -SubscriptionName $SubscriptionName
